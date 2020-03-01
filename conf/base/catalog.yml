@@ -42,9 +42,21 @@
 
 cloc_files:
   type: kedro_code_forensics.io.cloc_file.ClocFileDataSet
-  filepath: ${path}
+  filepath:
 
 
 git_files:
   type: kedro_code_forensics.io.git_file_commit.GitFileCommitDataSet
-  filepath: ${path}
+  filepath:
+  before:
+  after:
+
+
+hot_spot_bubble_packer:
+  type: kedro_code_forensics.io.bubble_packer.BubblePackerDataSet
+  filepath: data/forensics/hot_spot_bubble_packer.html
+
+
+hot_spots:
+  type: kedro.io.PickleLocalDataSet
+  filepath: data/forensics/hot_spots.pickle

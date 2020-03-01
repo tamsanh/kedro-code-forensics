@@ -1,20 +1,28 @@
 import csv
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, List, NamedTuple, TextIO
+from pathlib import PurePath
+from typing import Any, Dict, List, NamedTuple, Optional, TextIO
 
 import dateutil
-from kedro.io import AbstractVersionedDataSet, DataSetError
+from kedro.io import AbstractVersionedDataSet, DataSetError, Version
+
+from kedro_code_forensics.io.expections import ReadOnlyDataSet
+
+
+class Committer(NamedTuple):
+    name: str
+    email: str
 
 
 class GitFileCommit(NamedTuple):
     hash: str
     date: datetime
-    author: str
-    email: str
+    committer: Committer
     message: str
     filepath: str
-    change_count: str
+    insertions: int
+    deletions: int
 
 
 def _count_lines(file_pointer: TextIO):
@@ -38,58 +46,79 @@ def _parse_git_log_output(raw_output: str) -> List[GitFileCommit]:
 
     parseable_lines = raw_output.strip().split("\n")
 
+    def _parse_change(change: str):
+        if change == "-":
+            return 0
+        return int(change)
+
     for line in parseable_lines:
 
         if line.strip() == "":
             continue
 
-        if line.startswith("commit:"):
+        if line.strip().startswith("commit:"):
             header = ["hash", "date", "author", "email", "message"]
             line = line[7:]
             reader = csv.reader([line])
             current_commit = dict(zip(header, next(reader)))
             current_commit["date"] = dateutil.parser.parse(current_commit["date"])
+
+            current_commit["committer"] = Committer(
+                current_commit["author"], current_commit["email"]
+            )
+            del current_commit["author"]
+            del current_commit["email"]
             continue
 
-        if all([x in line for x in ["changed", "insertion", "deletion"]]):
-            # Ignore stat summary line
-            continue
-
-        # Grab the change count
-        split_line = line.strip().split("|")
-        last_segment = split_line[-1]
-        change_count, _ = last_segment.strip().split(" ")
-        current_commit["change_count"] = int(change_count)
-
-        # Grab the file path
-        filepath = "|".join(split_line[:-1])
-        current_commit["filepath"] = filepath.strip()
+        split_lines = line.split("\t")
+        try:
+            current_commit["insertions"] = _parse_change(split_lines[0])
+            current_commit["deletions"] = _parse_change(split_lines[1])
+            current_commit["filepath"] = split_lines[2]
+        except (ValueError, IndexError):
+            raise Exception(f'Can not parse line: "{line}"')
 
         out_commits.append(GitFileCommit(**current_commit))
     return out_commits
 
 
 class GitFileCommitDataSet(AbstractVersionedDataSet):
+    def __init__(
+        self,
+        filepath: PurePath,
+        version: Optional[Version] = None,
+        before: Optional[str] = None,
+        after: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(filepath, version, *args, **kwargs)
+        self._before = before
+        self._after = after
+
     def _describe(self) -> Dict[str, Any]:
-        return dict(
-            filepath=self._filepath,
-        )
+        return dict(filepath=self._filepath, before=self._before, after=self._after)
 
     def _save(self, data: Any) -> None:
-        raise DataSetError("This is a read-only dataset.")
+        raise ReadOnlyDataSet()
 
     def _load(self) -> List[GitFileCommit]:
         try:
-            raw_git_output = subprocess.check_output(
-                [
-                    "git",
-                    "-C",
-                    self._filepath,
-                    "log",
-                    '--format=\'commit:%H,%cI,"%an",%ae,"%s"\'',
-                    "--stat=9999999",  # Large stat width to capture entire file path
-                ]
-            )
+            git_command = [
+                "git",
+                "-C",
+                self._filepath,
+                "log",
+                '--pretty=format:commit:%H,%cI,"%an",%ae,"%s"',
+                "--numstat",  # Large stat width to capture entire file path
+            ]
+
+            if type(self._before) is datetime.date:
+                git_command.append(f"--before={self._before}")
+            if type(self._after) is datetime.date:
+                git_command.append(f"--after={self._after}")
+
+            raw_git_output = subprocess.check_output(git_command).decode("UTF8")
         except subprocess.CalledProcessError as e:
             raise DataSetError(e)
 

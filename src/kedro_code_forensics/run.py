@@ -28,7 +28,7 @@
 
 """Application entry point."""
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import Dict
 
 from kedro.config import ConfigLoader, TemplatedConfigLoader
 from kedro.context import KedroContext, load_context
@@ -48,17 +48,21 @@ class ProjectContext(KedroContext):
     def _get_pipelines(self) -> Dict[str, Pipeline]:
         return create_pipelines()
 
-    def _create_config_loader(  # pylint: disable=no-self-use
-            self, conf_paths: Iterable[str]
-    ) -> ConfigLoader:
+    @property
+    def config_loader(self) -> ConfigLoader:
         import os
-        config_loader = super()._create_config_loader(conf_paths)
+
+        config_loader = self._get_config_loader()
+
+        # Add extra git parameters
+        extra_params = self._extra_params or {}
         git_path_config = {
-            "path": os.path.expanduser(self._extra_params.get("path"))
+            "path": os.path.expanduser(extra_params.get("path", os.getcwd())),
+            "before": extra_params.get("before", None),
+            "after": extra_params.get("after", None),
         }
         return TemplatedConfigLoader(
-            config_loader.conf_paths,
-            globals_dict=git_path_config,
+            config_loader.conf_paths, globals_dict=git_path_config,
         )
 
 

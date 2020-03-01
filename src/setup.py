@@ -28,9 +28,7 @@
 
 from setuptools import find_packages, setup
 
-entry_point = (
-    "kedro-code-forensics = kedro_code_forensics.run:run_package"
-)
+entry_point = "kedro-code-forensics = kedro_code_forensics.run:run_package"
 
 
 # get the dependencies and installs

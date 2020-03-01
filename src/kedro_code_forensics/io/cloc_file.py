@@ -5,6 +5,8 @@ from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 from kedro.io import AbstractVersionedDataSet, Version
 
+from kedro_code_forensics.io.expections import ReadOnlyDataSet
+
 
 class ClocFile(NamedTuple):
     filepath: str
@@ -14,8 +16,13 @@ class ClocFile(NamedTuple):
     language: str
 
 
-def _parse_cloc_files(raw_cloc_data: Dict[str, Dict[str, Union[str, int]]]):
+def _parse_cloc_files(
+    base_path: str, raw_cloc_data: Dict[str, Dict[str, Union[str, int]]]
+):
     out_cloc_files = []
+
+    if not base_path.endswith("/"):
+        base_path += "/"
 
     # Drop the extra unneeded metadata
     if "header" in raw_cloc_data:
@@ -24,7 +31,7 @@ def _parse_cloc_files(raw_cloc_data: Dict[str, Dict[str, Union[str, int]]]):
         del raw_cloc_data["SUM"]
 
     for raw_file_path, file_data in raw_cloc_data.items():
-        filepath = raw_file_path[2:]
+        filepath = raw_file_path.replace(base_path, "")
         out_cloc_files.append(ClocFile(filepath, **file_data))
 
     return out_cloc_files
@@ -50,7 +57,7 @@ class ClocFileDataSet(AbstractVersionedDataSet):
         excluded_dirs = []
 
         if len(self._excluded_dirs) > 0:
-            excluded_dirs = ["--excluded_dirs"] + self._excluded_dirs
+            excluded_dirs = ["--exclude-dir"] + self._excluded_dirs
 
         raw_json = subprocess.check_output(
             ["cloc", "--by-file", *excluded_dirs, "--json", self._filepath]
@@ -58,10 +65,10 @@ class ClocFileDataSet(AbstractVersionedDataSet):
 
         raw_cloc_data = json.loads(raw_json)
 
-        return _parse_cloc_files(raw_cloc_data)
+        return _parse_cloc_files(self._filepath, raw_cloc_data)
 
     def _save(self, data: Any) -> None:
-        pass
+        raise ReadOnlyDataSet()
 
     def _describe(self) -> Dict[str, Any]:
         return dict(

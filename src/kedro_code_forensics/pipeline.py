@@ -31,7 +31,13 @@
 
 from typing import Dict
 
-from kedro.pipeline import Pipeline
+from kedro.pipeline import Pipeline, node
+
+from kedro_code_forensics.nodes.reporters import report_hot_spots_bubble_pack
+from kedro_code_forensics.nodes.transformations import (
+    generate_git_revisions,
+    generate_hot_spots,
+)
 
 
 def create_pipelines(**kwargs) -> Dict[str, Pipeline]:
@@ -45,6 +51,22 @@ def create_pipelines(**kwargs) -> Dict[str, Pipeline]:
 
     """
 
-    return {"__default__": Pipeline([
-
-    ])}
+    return {
+        "__default__": Pipeline(
+            [
+                node(
+                    generate_git_revisions, inputs="git_files", outputs="git_revisions"
+                ),
+                node(
+                    generate_hot_spots,
+                    inputs=["git_revisions", "cloc_files"],
+                    outputs="hot_spots",
+                ),
+                node(
+                    report_hot_spots_bubble_pack,
+                    inputs="hot_spots",
+                    outputs="hot_spot_bubble_packer",
+                ),
+            ]
+        )
+    }
