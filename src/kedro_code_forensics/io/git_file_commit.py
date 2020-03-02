@@ -5,7 +5,7 @@ from pathlib import PurePath
 from typing import Any, Dict, List, NamedTuple, Optional, TextIO
 
 import dateutil
-from kedro.io import AbstractVersionedDataSet, DataSetError, Version
+from kedro.io import AbstractVersionedDataSet, DataSetError
 
 from kedro_code_forensics.io.expections import ReadOnlyDataSet
 
@@ -16,6 +16,18 @@ class Committer(NamedTuple):
 
 
 class GitFileCommit(NamedTuple):
+    """
+    GitFileCommit is the tuple containing the git commit data from the logs
+
+        hash: The hash value
+        date: The commit date
+        committer: The tuple containing the name and email of the commiter
+        message: The commit summary line
+        filepath: The filepath of this particular file
+        insertions: The number of insertions made by the committer to this file
+        deletions: The number of deletions made by the committer to this file
+    """
+
     hash: str
     date: datetime
     committer: Committer
@@ -83,16 +95,29 @@ def _parse_git_log_output(raw_output: str) -> List[GitFileCommit]:
 
 
 class GitFileCommitDataSet(AbstractVersionedDataSet):
+    """
+    GitFileCommitDataSet will run git log,
+    parse through the output, and return
+    to you a list of GitFileCommit tuples
+    containing the relevant data for that commit.
+    Supports git's --before and --after parameters for
+    filtering by arbitrary time periods.
+
+    Args:
+        filepath: The path to the git repository
+        before: The end date of the git logs to gather
+        after: The start date of the git logs to gather
+    """
+
     def __init__(
         self,
         filepath: PurePath,
-        version: Optional[Version] = None,
         before: Optional[str] = None,
         after: Optional[str] = None,
         *args,
         **kwargs,
     ):
-        super().__init__(filepath, version, *args, **kwargs)
+        super().__init__(filepath, version=None, *args, **kwargs)
         self._before = before
         self._after = after
 
@@ -110,7 +135,7 @@ class GitFileCommitDataSet(AbstractVersionedDataSet):
                 self._filepath,
                 "log",
                 '--pretty=format:commit:%H,%cI,"%an",%ae,"%s"',
-                "--numstat",  # Large stat width to capture entire file path
+                "--numstat",
             ]
 
             if type(self._before) is datetime.date:

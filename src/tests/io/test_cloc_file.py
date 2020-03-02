@@ -1,8 +1,8 @@
 class TestClocFile:
     def test_parse_cloc_files(self, basic_cloc_data):
-        from kedro_code_forensics.io.cloc_file import _parse_cloc_files, ClocFile
+        from kedro_code_forensics.io.cloc_file import _parse_cloc_output, ClocFile
 
-        actual = _parse_cloc_files("./", basic_cloc_data)
+        actual = _parse_cloc_output("./", basic_cloc_data)
         expected = [
             ClocFile("kedro_cli.py", 101, 88, 435, "Python"),
             ClocFile("README.md", 50, 0, 87, "Markdown"),

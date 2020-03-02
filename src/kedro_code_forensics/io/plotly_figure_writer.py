@@ -3,30 +3,32 @@ from pathlib import PurePath
 from typing import Any, Dict, Optional
 
 from kedro.contrib.io import DefaultArgumentsMixIn
-from kedro.io import AbstractVersionedDataSet, Version
+from kedro.io import AbstractVersionedDataSet
 from plotly.graph_objs._figure import Figure
 
 from kedro_code_forensics.io.expections import WriteOnlyDataSet
 
 
-class FigureWriterDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
+class PlotlyFigureWriterDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
+    """
+    PlotlyFigureWriterDataSet is a simple dataset
+    that will write the data of a plotly figure.
+        Supports writing the figure as an html document or an image
+    """
+
     DEFAULT_SAVE_ARGS = {}
 
     def __init__(
-        self,
-        filepath: PurePath,
-        version: Optional[Version] = None,
-        save_args: Optional[Dict[str, Any]] = None,
+        self, filepath: PurePath, save_args: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
-            filepath=filepath, version=version, load_args=None, save_args=save_args
+            filepath=filepath, version=None, load_args=None, save_args=save_args
         )
 
     def _load(self) -> Any:
         raise WriteOnlyDataSet()
 
     def _save(self, data: Figure) -> None:
-
         _, ext = os.path.splitext(self._filepath)
 
         if ext.lower() in [".html", ".htm"]:

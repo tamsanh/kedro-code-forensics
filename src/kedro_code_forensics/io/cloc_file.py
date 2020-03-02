@@ -1,14 +1,23 @@
 import json
 import subprocess
 from pathlib import PurePath
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Union
 
-from kedro.io import AbstractVersionedDataSet, Version
+from kedro.io import AbstractVersionedDataSet
 
 from kedro_code_forensics.io.expections import ReadOnlyDataSet
 
 
 class ClocFile(NamedTuple):
+    """
+    ClocFile is the collection of cloc data for a single file.
+        filepath: The path of the file, relative to the root directory
+        blank: The number of blank lines
+        comment: The number of comment lines
+        code: The number of code lines
+        language: The language of the code file
+    """
+
     filepath: str
     blank: int
     comment: int
@@ -16,9 +25,9 @@ class ClocFile(NamedTuple):
     language: str
 
 
-def _parse_cloc_files(
+def _parse_cloc_output(
     base_path: str, raw_cloc_data: Dict[str, Dict[str, Union[str, int]]]
-):
+) -> List[ClocFile]:
     out_cloc_files = []
 
     if not base_path.endswith("/"):
@@ -38,20 +47,22 @@ def _parse_cloc_files(
 
 
 class ClocFileDataSet(AbstractVersionedDataSet):
+    """
+    ClocFileDataSet returns a list of ClocFile tuples
+    that contain the cloc data for each of the files found
+    in the specified filepath.
+    Args:
+        filepath: The path to the directory that we will be counting
+        excluded_dirs: A list of directories that we will be excluding
+    """
+
     DEFAULT_EXCLUDED_DIRS = ["venv"]
 
     def __init__(
-        self,
-        filepath: PurePath,
-        version: Optional[Version] = None,
-        excluded_dirs: List[str] = None,
-        ignore_comments: bool = False,
-        *args,
-        **kwargs
+        self, filepath: PurePath, excluded_dirs: List[str] = None, *args, **kwargs
     ):
-        super().__init__(filepath, version=version, *args, **kwargs)
+        super().__init__(filepath, version=None, *args, **kwargs)
         self._excluded_dirs = excluded_dirs or self.DEFAULT_EXCLUDED_DIRS
-        self._ignore_comments = ignore_comments
 
     def _load(self) -> Any:
         excluded_dirs = []
@@ -65,14 +76,10 @@ class ClocFileDataSet(AbstractVersionedDataSet):
 
         raw_cloc_data = json.loads(raw_json)
 
-        return _parse_cloc_files(self._filepath, raw_cloc_data)
+        return _parse_cloc_output(self._filepath, raw_cloc_data)
 
     def _save(self, data: Any) -> None:
         raise ReadOnlyDataSet()
 
     def _describe(self) -> Dict[str, Any]:
-        return dict(
-            filepath=self._filepath,
-            excluded_dirs=self._excluded_dirs,
-            ignore_comments=self._ignore_comments,
-        )
+        return dict(filepath=self._filepath, excluded_dirs=self._excluded_dirs,)

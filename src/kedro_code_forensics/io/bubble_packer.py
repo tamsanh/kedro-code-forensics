@@ -1,6 +1,6 @@
 import json
 import os
-from json import JSONDecoder, JSONEncoder
+from json import JSONEncoder
 from pathlib import PurePath
 from typing import Any, Dict, List, NamedTuple, Optional
 
@@ -10,6 +10,8 @@ from numpy.core import int64
 
 from kedro_code_forensics.io.expections import WriteOnlyDataSet
 
+# Credit to @mbostock
+# https://observablehq.com/@d3/zoomable-circle-packing
 html_template = """
 <html>
     <head>
@@ -108,6 +110,14 @@ html_template = """
 
 
 class BubblePack(NamedTuple):
+    """
+    BubblePack represents one leaf level item
+    that will be packed in the BubblePackerDataSet.
+        path: The list values that represent the hierarchy for this one leaf
+        size: The relative size of this leaf
+        value: The relative color value for this leaf
+    """
+
     path: List[str]
     size: int
     value: int
@@ -147,7 +157,7 @@ def _rec_childrenizer(
     return {"name": root_name, "children": children}
 
 
-class BubbleJSONDecoder(JSONEncoder):
+class _BubbleJSONDecoder(JSONEncoder):
     def default(self, o):
         if type(o) == int64:
             return int(o)
@@ -155,6 +165,12 @@ class BubbleJSONDecoder(JSONEncoder):
 
 
 class BubblePackerDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
+    """
+    BubblePackerDataSet is a simple DataSet
+    that takes in a list of BubblePack values and
+    generates a bubble packer graph.
+    """
+
     DEFAULT_SAVE_ARGS = {"width": 932, "height": 600}
 
     def __init__(
@@ -175,7 +191,7 @@ class BubblePackerDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
             f.write(
                 html_template
                 % {
-                    "json": json.dumps(childrenized_data, cls=BubbleJSONDecoder),
+                    "json": json.dumps(childrenized_data, cls=_BubbleJSONDecoder),
                     "max_domain": max_domain,
                     "max_heat": max_heat,
                     **self._save_args,

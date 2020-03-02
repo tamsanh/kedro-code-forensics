@@ -35,7 +35,7 @@ from kedro.pipeline import Pipeline, node
 
 from kedro_code_forensics.nodes.reporters import report_hot_spots_bubble_pack
 from kedro_code_forensics.nodes.transformations import (
-    generate_git_revisions,
+    generate_git_revision_aggregates,
     generate_hot_spots,
 )
 
@@ -55,7 +55,9 @@ def create_pipelines(**kwargs) -> Dict[str, Pipeline]:
         "__default__": Pipeline(
             [
                 node(
-                    generate_git_revisions, inputs="git_files", outputs="git_revisions"
+                    generate_git_revision_aggregates,
+                    inputs="git_files",
+                    outputs="git_revisions",
                 ),
                 node(
                     generate_hot_spots,
