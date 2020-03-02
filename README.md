@@ -2,22 +2,15 @@
 
 ## Overview
 
-This is your new Kedro project, which was generated using `Kedro 0.15.7` by running:
+A simple example pipeline that implements custom datasets that talk to `git log` and `cloc` in order to gather data about your code.
 
-```
-kedro new
-```
+This is based off of the basic premise of the book "Your Code as a Crime Scene" by Adam Tornhill.
 
-Take a look at the [documentation](https://kedro.readthedocs.io) to get started.
+## Usage
 
-## Rules and guidelines
+Update the `git_files` and `cloc_files` datasets in `conf/catalog.yml` to have a filepath pointing at a git repository, then use `kedro run` to run the project.
 
-In order to get the best out of the template:
- * Please don't remove any lines from the `.gitignore` file provided
- * Make sure your results can be reproduced by following a data engineering convention, e.g. the one we suggest [here](https://kedro.readthedocs.io/en/stable/06_resources/01_faq.html#what-is-data-engineering-convention)
- * Don't commit any data to your repository
- * Don't commit any credentials or local configuration to your repository
- * Keep all credentials or local configuration in `conf/local/`
+The simple hotspot analysis will show up in `data/forensics/hot_spot_bubble_packer.html`
 
 ## Installing dependencies
 
